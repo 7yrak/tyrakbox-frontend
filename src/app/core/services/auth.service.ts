@@ -1,7 +1,8 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, PLATFORM_ID, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { Observable, tap } from 'rxjs';
+import { isPlatformBrowser } from '@angular/common';
 
 @Injectable({
   providedIn: 'root'
@@ -9,6 +10,7 @@ import { Observable, tap } from 'rxjs';
 export class AuthService {
   private http = inject(HttpClient);
   private apiUrl = `${environment.apiUrl}/auth`;
+  private platformId = inject(PLATFORM_ID);
 
   login(credentials: { username: string, password: string }): Observable<any> {
     return this.http.post(`${this.apiUrl}/login`, credentials).pipe(
@@ -21,18 +23,25 @@ export class AuthService {
   }
 
   setToken(token: string): void {
-    localStorage.setItem('tyrak_token', token);
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.setItem('tyrak_token', token);
+    }
   }
 
   getToken(): string | null {
-    return localStorage.getItem('tyrak_token');
+    if (isPlatformBrowser(this.platformId)) {
+      return localStorage.getItem('tyrak_token');
+    }
+    return null;
   }
 
   logout(): void {
-    localStorage.removeItem('tyrak_token');
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.removeItem('tyrak_token');
+    }
   }
 
-  isLoggedIn(): boolean {
+  isAuthenticated(): boolean {
     return !!this.getToken();
   }
 }

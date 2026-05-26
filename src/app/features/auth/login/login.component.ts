@@ -8,7 +8,8 @@ import { CommonModule } from '@angular/common';
   selector: 'app-login',
   standalone: true,
   imports: [ReactiveFormsModule, CommonModule, RouterModule],
-  templateUrl: './login.component.html'
+  templateUrl: './login.component.html',
+  styleUrls: ['./login.scss'] // <-- ESTA LÍNEA FALTABA
 })
 export class LoginComponent {
   private fb = inject(FormBuilder);
@@ -27,7 +28,7 @@ export class LoginComponent {
     if (this.loginForm.valid) {
       this.isLoading = true;
       this.authService.login(this.loginForm.value as any).subscribe({
-        next: () => this.router.navigate(['/box']), // Al entrar, vamos al dashboard
+        next: () => this.router.navigate(['/box']),
         error: (err: any) => {
           this.errorMessage = err.error?.error || 'Credenciales incorrectas';
           this.isLoading = false;

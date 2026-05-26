@@ -8,7 +8,8 @@ import { CommonModule } from '@angular/common';
   selector: 'app-register',
   standalone: true,
   imports: [ReactiveFormsModule, CommonModule, RouterModule],
-  templateUrl: './register.component.html'
+  templateUrl: './register.component.html',
+  styleUrls: ['./register.scss'] // <-- ESTA LÍNEA FALTABA
 })
 export class RegisterComponent {
   private fb = inject(FormBuilder);
@@ -21,19 +22,16 @@ export class RegisterComponent {
   registerForm = this.fb.group({
     username: ['', Validators.required],
     email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(6)]]
+    password: ['', Validators.required]
   });
 
   onSubmit() {
     if (this.registerForm.valid) {
       this.isLoading = true;
       this.authService.register(this.registerForm.value).subscribe({
-        next: () => {
-          // Después del registro exitoso, ir al login
-          this.router.navigate(['/login']);
-        },
+        next: () => this.router.navigate(['/login']),
         error: (err: any) => {
-          this.errorMessage = err.error?.error || err.error?.message || 'Error al registrar';
+          this.errorMessage = err.error?.error || 'Error en el registro';
           this.isLoading = false;
         }
       });
