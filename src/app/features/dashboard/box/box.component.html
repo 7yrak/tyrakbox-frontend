@@ -1,129 +1,101 @@
-<div class="app-layout">
+<div class="box-container">
 
-    <header class="app-header">
-        <div class="logo">
-            <svg viewBox="0 0 24 24" width="32" height="32" fill="var(--primary-color)">
-                <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.36 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM19 18H6c-2.21 0-4-1.79-4-4 0-2.05 1.53-3.76 3.56-3.97l1.07-.11.5-.95C8.08 7.14 9.94 6 12 6c2.62 0 4.88 1.86 5.39 4.43l.3 1.5 1.53.11c1.56.1 2.78 1.41 2.78 2.96 0 1.65-1.35 3-3 3z"></path>
-            </svg>
-            <span>Tyrak Box</span>
+    <div class="header-actions">
+      <nav class="breadcrumb">
+        <ol>
+          <li *ngFor="let item of navigationHistory; let i = index; let last = last">
+            <a *ngIf="!last" href="javascript:void(0)" (click)="navigateUp(i)">{{ item.name }}</a>
+            <span *ngIf="last">{{ item.name }}</span>
+            <span class="separator" *ngIf="!last">
+              <svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg>
+            </span>
+          </li>
+        </ol>
+      </nav>
+
+      <div class="actions">
+        <input type="file" #folderInput style="display: none" (change)="onFolderSelected($event)" webkitdirectory>
+        <button class="btn btn-secondary" (click)="folderInput.click()" [disabled]="isUploading">
+          Subir Carpeta
+        </button>
+
+        <input type="file" #fileInput style="display: none" (change)="onFileSelected($event)" multiple>
+        <button class="btn btn-secondary" (click)="fileInput.click()" [disabled]="isUploading">
+          Subir Archivo
+        </button>
+
+        <button class="btn btn-primary" (click)="openNewFolderModal()">
+          Nueva Carpeta
+        </button>
+      </div>
+    </div>
+
+    <div class="upload-progress-container" *ngIf="isUploading">
+        <div class="upload-info">
+            <span>Subiendo: <strong>{{ currentUploadingFile }}</strong> ({{uploadedFilesCount + 1}}/{{totalFilesToUpload}})</span>
+            <span>{{ getUploadPercentage() }}%</span>
         </div>
-        <div class="user-actions">
-            <button class="btn btn-icon" (click)="logout()" title="Cerrar sesión">
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                    <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"></path>
-                </svg>
-            </button>
+        <div class="progress-bar">
+            <div class="progress-fill" [style.width.%]="getUploadPercentage()"></div>
         </div>
-    </header>
+    </div>
 
-    <div class="box-container">
+    <div *ngIf="isLoading" class="loading-state">
+        <div class="spinner"></div>
+    </div>
 
-        <div class="header-actions">
-            <nav class="breadcrumb">
-                <ol>
-                    <li *ngFor="let item of navigationHistory; let i = index; let last = last">
-                        <a *ngIf="!last" href="javascript:void(0)" (click)="navigateUp(i)">{{ item.name }}</a>
-                        <span *ngIf="last">{{ item.name }}</span>
-                        <span class="separator" *ngIf="!last">
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                                <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path>
-                            </svg>
-                        </span>
-                    </li>
-                </ol>
-            </nav>
+    <div *ngIf="!isLoading && errorMessage" class="error">
+      {{ errorMessage }}
+    </div>
 
-            <div class="actions">
-                <input type="file" #folderInput style="display: none" (change)="onFolderSelected($event)" webkitdirectory>
-                <button class="btn btn-secondary" (click)="folderInput.click()" [disabled]="isUploading">
-                    Subir Carpeta
-                </button>
+    <div *ngIf="!isLoading && !errorMessage">
+      <div class="content-list" *ngIf="folders.length > 0 || files.length > 0">
+        <div class="list-header">
+          <div class="name-col">Nombre</div>
+          <div class="size-col">Tamaño</div>
+          <div class="date-col">Modificación</div>
+        </div>
+        <div class="list-item" *ngFor="let folder of folders" (click)="navigateToFolder(folder)" (contextmenu)="onRightClick($event, folder, 'folder')">
+          <div class="name-col">
+            <svg class="icon folder-icon" viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"></path></svg>
+            <span>{{ folder.name }}</span>
+          </div>
+          <div class="size-col">--</div>
+          <div class="date-col">{{ folder.createdAt | date:'short' }}</div>
+        </div>
+        <div class="list-item" *ngFor="let file of files" (click)="downloadFile(file)" (contextmenu)="onRightClick($event, file, 'file')">
+          <div class="name-col">
+            <svg class="icon" [ngClass]="getFileIcon(file.mimeType).class" viewBox="0 0 24 24" [innerHTML]="getFileIcon(file.mimeType).path | safeHtml"></svg>
+            <span>{{ file.name }}</span>
+          </div>
+          <div class="size-col">{{ formatSize(file.sizeBytes) }}</div>
+          <div class="date-col">{{ file.createdAt | date:'short' }}</div>
+        </div>
+      </div>
 
-                <input type="file" #fileInput style="display: none" (change)="onFileSelected($event)" multiple>
-                <button class="btn btn-secondary" (click)="fileInput.click()" [disabled]="isUploading">
-                    Subir Archivo
-                </button>
+      <div *ngIf="folders.length === 0 && files.length === 0" class="empty-state">
+        <h3>Esta carpeta está vacía</h3>
+        <p>Arrastra archivos aquí o usa los botones de subida.</p>
+      </div>
+    </div>
 
-                <button class="btn btn-primary" (click)="openNewFolderModal()">
-                    Nueva Carpeta
-                </button>
+    <div class="modal-overlay" *ngIf="showNewFolderModal" (click)="closeNewFolderModal()">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+            <h2>Nueva carpeta</h2>
+            <input type="text" [(ngModel)]="newFolderName" placeholder="Nombre" class="form-control" (keyup.enter)="confirmCreateFolder()">
+            <div class="modal-actions">
+              <button class="btn btn-text" (click)="closeNewFolderModal()">Cancelar</button>
+              <button class="btn btn-primary" (click)="confirmCreateFolder()">Crear</button>
             </div>
         </div>
+    </div>
 
-        <div class="upload-progress-container" *ngIf="isUploading">
-            <div class="upload-info">
-                <span>Subiendo: <strong>{{ currentUploadingFile }}</strong> ({{uploadedFilesCount + 1}}/{{totalFilesToUpload}})</span>
-                <span>{{ getUploadPercentage() }}%</span>
-            </div>
-            <div class="progress-bar">
-                <div class="progress-fill" [style.width.%]="getUploadPercentage()"></div>
-            </div>
-        </div>
-
-        <div *ngIf="isLoading" class="loading-state">
-            <div class="spinner"></div>
-            <p>Cargando contenido...</p>
-        </div>
-
-        <div *ngIf="!isLoading && errorMessage" class="error">
-            {{ errorMessage }}
-        </div>
-
-        <div *ngIf="!isLoading && !errorMessage">
-            <div class="content-list" *ngIf="folders.length > 0 || files.length > 0">
-                <div class="list-header">
-                    <div class="name-col">Nombre</div>
-                    <div class="size-col">Tamaño</div>
-                    <div class="date-col">Modificación</div>
-                </div>
-
-                <div class="list-item" *ngFor="let folder of folders" (click)="navigateToFolder(folder)" (contextmenu)="onRightClick($event, folder, 'folder')">
-                    <div class="name-col">
-                        <svg class="icon folder-icon" viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"></path></svg>
-                        <span>{{ folder.name }}</span>
-                    </div>
-                    <div class="size-col">--</div>
-                    <div class="date-col">{{ folder.createdAt | date:'short' }}</div>
-                </div>
-
-                <div class="list-item" *ngFor="let file of files" (click)="downloadFile(file)" (contextmenu)="onRightClick($event, file, 'file')">
-                    <div class="name-col">
-                        <svg class="icon" [ngClass]="getFileIcon(file.mimeType).class" viewBox="0 0 24 24" [innerHTML]="getFileIcon(file.mimeType).path | safeHtml"></svg>
-                        <span>{{ file.name }}</span>
-                    </div>
-                    <div class="size-col">{{ formatSize(file.sizeBytes) }}</div>
-                    <div class="date-col">{{ file.createdAt | date:'short' }}</div>
-                </div>
-            </div>
-
-            <div *ngIf="folders.length === 0 && files.length === 0" class="empty-state">
-                <div class="empty-icon">
-                    <svg viewBox="0 0 24 24" width="96" height="96" fill="currentColor">
-                        <path d="M19 15v4H5v-4h14m1-2H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1v-6c0-.55-.45-1-1-1zM7 18.5c-.82 0-1.5-.67-1.5-1.5s.68-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM19 5v4H5V5h14m1-2H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1zM7 8.5c-.82 0-1.5-.67-1.5-1.5S6.18 5.5 7 5.5s1.5.68 1.5 1.5S7.83 8.5 7 8.5z"></path>
-                    </svg>
-                </div>
-                <h3>Carpeta vacía</h3>
-            </div>
-        </div>
-
-        <div class="modal-overlay" *ngIf="showNewFolderModal" (click)="closeNewFolderModal()">
-            <div class="modal-content" (click)="$event.stopPropagation()">
-                <h2>Nueva carpeta</h2>
-                <input type="text" [(ngModel)]="newFolderName" placeholder="Nombre" class="form-control" (keyup.enter)="confirmCreateFolder()">
-                <div class="modal-actions">
-                    <button class="btn btn-text" (click)="closeNewFolderModal()">Cancelar</button>
-                    <button class="btn btn-primary" (click)="confirmCreateFolder()">Crear</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="context-menu" *ngIf="contextMenuVisible" [style.left.px]="contextMenuX" [style.top.px]="contextMenuY">
-            <ul>
-                <li (click)="deleteItem()">
-                    <svg viewBox="0 0 24 24" width="20" height="20"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" fill="currentColor"></path></svg>
-                    <span>Eliminar</span>
-                </li>
-            </ul>
-        </div>
+    <div class="context-menu" *ngIf="contextMenuVisible" [style.left.px]="contextMenuX" [style.top.px]="contextMenuY">
+        <ul>
+            <li (click)="deleteItem()">
+                <svg viewBox="0 0 24 24" width="20" height="20"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" fill="currentColor"></path></svg>
+                <span>Eliminar</span>
+            </li>
+        </ul>
     </div>
 </div>
