@@ -30,14 +30,20 @@
       </div>
     </div>
 
-    <div class="upload-progress-container" *ngIf="isUploading">
-        <div class="upload-info">
-            <span>Subiendo: <strong>{{ currentUploadingFile }}</strong> ({{uploadedFilesCount + 1}}/{{totalFilesToUpload}})</span>
-            <span>{{ getUploadPercentage() }}%</span>
-        </div>
-        <div class="progress-bar">
-            <div class="progress-fill" [style.width.%]="getUploadPercentage()"></div>
-        </div>
+    <!-- En tu archivo box.component.html -->
+    <div *ngIf="isUploading" class="upload-progress-container">
+      <div class="upload-info">
+        <!-- El porcentaje va primero y tiene su propio span -->
+        <span class="upload-percentage">{{ getUploadPercentage() }}%</span>
+        
+        <span class="upload-details">
+          Subiendo: <strong>{{ currentUploadingFile }}</strong> 
+          ({{ uploadedFilesCount + 1 }}/{{ totalFilesToUpload }})
+        </span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" [style.width.%]="getUploadPercentage()"></div>
+      </div>
     </div>
 
     <div *ngIf="isLoading" class="loading-state">
