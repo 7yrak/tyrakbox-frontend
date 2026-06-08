@@ -120,7 +120,7 @@ export class BoxComponent implements OnInit {
   private connectSyncSocket() {
     if (!isPlatformBrowser(this.platformId) || typeof window === 'undefined') return;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const socketUrl = `${protocol}//${window.location.hostname}:8084/ws/sync`;
+    const socketUrl = `${protocol}//${window.location.hostname}:8083/ws/sync`;
     this.syncSocket = new WebSocket(socketUrl);
 
     this.syncSocket.onmessage = (event) => {

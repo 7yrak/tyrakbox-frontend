@@ -14,7 +14,7 @@ export class AuthService {
 
   private resolveApiBaseUrl(): string {
     if (isPlatformBrowser(this.platformId) && typeof window !== 'undefined' && window.location?.hostname) {
-      return `http://${window.location.hostname}:8084/api`;
+      return `http://${window.location.hostname}:8083/api`;
     }
 
     return `${environment.apiUrl}`;
