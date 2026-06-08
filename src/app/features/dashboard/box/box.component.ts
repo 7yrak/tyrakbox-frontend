@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, ChangeDetectorRef, Pipe, PipeTransform, PLATFORM_ID } from '@angular/core';
+﻿import { Component, OnInit, inject, ChangeDetectorRef, Pipe, PipeTransform, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FolderService, Folder, File, FolderContent } from '../../../core/services/folder.service';
@@ -32,6 +32,19 @@ export class BoxComponent implements OnInit {
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
   private platformId = inject(PLATFORM_ID);
+  private syncSocket: WebSocket | null = null;
+  private reconnectTimer: any;
+  private reloadTimer: any;
+  private reloadPending = false;
+  private onDocumentClickHandler = () => this.onDocumentClick();
+  lastSyncMessage = '';
+  syncEnabled = false;
+  syncRunning = false;
+  syncCurrentTask = '';
+  syncCurrentProgress = 0;
+  syncLastEvent = '';
+  syncLastError = '';
+  syncRecentEvents: string[] = [];
 
   // Permitir uso de Math en el template
   protected readonly Math = Math;
@@ -66,13 +79,17 @@ export class BoxComponent implements OnInit {
   ngOnInit() {
     this.loadContent();
     if (isPlatformBrowser(this.platformId)) {
-      document.addEventListener('click', this.onDocumentClick.bind(this));
+      this.connectSyncSocket();
+      document.addEventListener('click', this.onDocumentClickHandler);
     }
   }
 
   ngOnDestroy() {
     if (isPlatformBrowser(this.platformId)) {
-      document.removeEventListener('click', this.onDocumentClick.bind(this));
+      if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+      if (this.reloadTimer) clearTimeout(this.reloadTimer);
+      this.disconnectSyncSocket();
+      document.removeEventListener('click', this.onDocumentClickHandler);
     }
   }
 
@@ -98,6 +115,78 @@ export class BoxComponent implements OnInit {
         this.cdr.detectChanges();
       }
     });
+  }
+
+  private connectSyncSocket() {
+    if (!isPlatformBrowser(this.platformId) || typeof window === 'undefined') return;
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const socketUrl = `${protocol}//${window.location.hostname}:8084/ws/sync`;
+    this.syncSocket = new WebSocket(socketUrl);
+
+    this.syncSocket.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (payload && typeof payload === 'object') {
+          if (payload.enabled !== undefined) this.syncEnabled = Boolean(payload.enabled);
+          if (payload.running !== undefined) this.syncRunning = Boolean(payload.running);
+          if (payload.currentTask !== undefined) this.syncCurrentTask = String(payload.currentTask ?? '');
+          if (payload.currentTaskProgress !== undefined) this.syncCurrentProgress = Number(payload.currentTaskProgress ?? 0);
+          if (payload.lastEvent !== undefined) this.syncLastEvent = String(payload.lastEvent ?? '');
+          if (payload.lastError !== undefined) this.syncLastError = String(payload.lastError ?? '');
+          if (Array.isArray(payload.recentEvents) && payload.recentEvents.length > 0) {
+            this.syncRecentEvents = payload.recentEvents.slice(0, 5).map((item: any) => String(item));
+            this.lastSyncMessage = this.syncRecentEvents[0];
+          }
+        }
+        if (payload?.type === 'refresh') {
+          this.lastSyncMessage = String(payload?.message ?? 'Actualizando cambios');
+          this.queueReload();
+        } else if (payload?.message) {
+          this.lastSyncMessage = String(payload.message);
+          this.cdr.detectChanges();
+        }
+      } catch (error) {
+        console.warn('Mensaje WS inválido', error);
+      }
+    };
+
+    this.syncSocket.onclose = () => {
+      this.syncSocket = null;
+      if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = setTimeout(() => this.connectSyncSocket(), 3000);
+    };
+
+    this.syncSocket.onerror = () => {
+      this.syncSocket?.close();
+    };
+  }
+
+  private disconnectSyncSocket() {
+    if (this.syncSocket) {
+      this.syncSocket.onmessage = null;
+      this.syncSocket.onclose = null;
+      this.syncSocket.onerror = null;
+      this.syncSocket.close();
+      this.syncSocket = null;
+    }
+  }
+
+  private queueReload() {
+    this.reloadPending = true;
+    if (this.reloadTimer) clearTimeout(this.reloadTimer);
+    this.reloadTimer = setTimeout(() => this.flushReload(), 900);
+  }
+
+  private flushReload() {
+    if (!this.reloadPending) return;
+    if (this.isLoading || this.isUploading) {
+      this.reloadTimer = setTimeout(() => this.flushReload(), 700);
+      return;
+    }
+
+    this.reloadPending = false;
+    this.reloadTimer = null;
+    this.loadContent();
   }
 
   navigateToFolder(folder: Folder) {

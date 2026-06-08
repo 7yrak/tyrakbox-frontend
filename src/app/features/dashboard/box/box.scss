@@ -220,3 +220,118 @@
     }
   }
 }
+.sync-widget {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 14px;
+  background: rgba(8, 23, 38, 0.92);
+  color: #f7fbff;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  max-width: min(340px, calc(100vw - 2rem));
+}
+
+.sync-widget-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.sync-widget-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #f7fbff;
+  white-space: nowrap;
+}
+
+.sync-widget-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #18a957;
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.sync-widget-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.sync-widget-line {
+  font-size: 0.84rem;
+  color: rgba(247, 251, 255, 0.92);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sync-widget-muted {
+  color: rgba(247, 251, 255, 0.65);
+}
+
+.sync-widget-error {
+  font-size: 0.78rem;
+  color: #ff9d9d;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sync-widget-bar {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.sync-widget-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #35d07f, #19b56d);
+  transition: width 0.18s ease;
+}
+
+.sync-widget-history {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sync-widget-history-title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(247, 251, 255, 0.55);
+}
+
+.sync-widget-history-item {
+  font-size: 0.8rem;
+  color: rgba(247, 251, 255, 0.88);
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sync-widget-text {
+  font-size: 0.84rem;
+  color: rgba(247, 251, 255, 0.82);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

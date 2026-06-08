@@ -1,5 +1,5 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, inject, ChangeDetectorRef, PLATFORM_ID } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Folder, File } from '../../../core/services/folder.service';
 import { TrashService } from '../../../core/services/trash.service';
 
@@ -13,13 +13,16 @@ import { TrashService } from '../../../core/services/trash.service';
 export class TrashComponent implements OnInit {
   private trashService = inject(TrashService);
   private cdr = inject(ChangeDetectorRef);
+  private platformId = inject(PLATFORM_ID);
 
   folders: Folder[] = [];
   files: File[] = [];
   isLoading = true;
 
   ngOnInit() {
-    this.loadTrashContent();
+    if (isPlatformBrowser(this.platformId)) {
+      this.loadTrashContent();
+    }
   }
 
   loadTrashContent() {

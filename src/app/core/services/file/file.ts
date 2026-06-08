@@ -1,39 +1,55 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, PLATFORM_ID, inject } from '@angular/core';
 import { HttpClient, HttpEvent, HttpRequest } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
 import { Observable } from 'rxjs';
+import { isPlatformBrowser } from '@angular/common';
 
 @Injectable({
   providedIn: 'root'
 })
 export class FileService {
   private http = inject(HttpClient);
-  private apiUrl = `${environment.apiUrl}/files`;
+  private platformId = inject(PLATFORM_ID);
+  private apiUrl = `${this.resolveApiBaseUrl()}`;
 
-  uploadFile(file: File, folderId?: string, relativePath?: string): Observable<HttpEvent<any>> {
+  private resolveApiBaseUrl(): string {
+    if (isPlatformBrowser(this.platformId) && typeof window !== 'undefined' && window.location?.hostname) {
+      return `http://${window.location.hostname}:8084/api`;
+    }
+
+    return `${environment.apiUrl}`;
+  }
+
+  uploadFile(file: any, folderId?: string): Observable<HttpEvent<any>> {
     const formData = new FormData();
     formData.append('file', file);
     if (folderId) {
       formData.append('folderId', folderId);
     }
-    if (relativePath) {
-      formData.append('relativePath', relativePath);
-    }
 
-    const req = new HttpRequest('POST', `${this.apiUrl}/upload`, formData, {
+    const req = new HttpRequest('POST', `${this.apiUrl}/files/upload`, formData, {
       reportProgress: true,
     });
 
     return this.http.request(req);
   }
 
+  uploadChunk(chunk: Blob, chunkNumber: number, totalChunks: number, identifier: string): Observable<any> {
+    const formData = new FormData();
+    formData.append('chunk', chunk);
+    formData.append('chunkNumber', chunkNumber.toString());
+    formData.append('totalChunks', totalChunks.toString());
+    formData.append('identifier', identifier);
+    return this.http.post(`${this.apiUrl}/chunk/upload`, formData);
+  }
+
   downloadFile(fileId: string): Observable<Blob> {
-    return this.http.get(`${this.apiUrl}/download/${fileId}`, {
+    return this.http.get(`${this.apiUrl}/files/download/${fileId}`, {
       responseType: 'blob'
     });
   }
 
   deleteFile(fileId: string): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/${fileId}`);
+    return this.http.delete<void>(`${this.apiUrl}/files/${fileId}`);
   }
 }

@@ -9,8 +9,16 @@ import { isPlatformBrowser } from '@angular/common';
 })
 export class AuthService {
   private http = inject(HttpClient);
-  private apiUrl = `${environment.apiUrl}/auth`;
   private platformId = inject(PLATFORM_ID);
+  private apiUrl = `${this.resolveApiBaseUrl()}/auth`;
+
+  private resolveApiBaseUrl(): string {
+    if (isPlatformBrowser(this.platformId) && typeof window !== 'undefined' && window.location?.hostname) {
+      return `http://${window.location.hostname}:8084/api`;
+    }
+
+    return `${environment.apiUrl}`;
+  }
 
   login(credentials: { username: string, password: string }): Observable<any> {
     return this.http.post(`${this.apiUrl}/login`, credentials).pipe(

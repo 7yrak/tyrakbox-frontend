@@ -1,7 +1,8 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, PLATFORM_ID, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { Observable } from 'rxjs';
+import { isPlatformBrowser } from '@angular/common';
 
 export interface Folder {
   id: string;
@@ -28,7 +29,16 @@ export interface FolderContent {
 })
 export class FolderService {
   private http = inject(HttpClient);
-  private apiUrl = `${environment.apiUrl}/folders`;
+  private platformId = inject(PLATFORM_ID);
+  private apiUrl = `${this.resolveApiBaseUrl()}/folders`;
+
+  private resolveApiBaseUrl(): string {
+    if (isPlatformBrowser(this.platformId) && typeof window !== 'undefined' && window.location?.hostname) {
+      return `http://${window.location.hostname}:8084/api`;
+    }
+
+    return `${environment.apiUrl}`;
+  }
 
   getFolderContent(parentId?: string): Observable<FolderContent> {
       const url = parentId ? `${this.apiUrl}/content?parentId=${parentId}` : `${this.apiUrl}/content`;

@@ -79,9 +79,34 @@
         </div>
       </div>
 
-      <div *ngIf="folders.length === 0 && files.length === 0" class="empty-state">
+    <div *ngIf="folders.length === 0 && files.length === 0" class="empty-state">
         <h3>Esta carpeta está vacía</h3>
         <p>Arrastra archivos aquí o usa los botones de subida.</p>
+      </div>
+    </div>
+
+    <div class="sync-widget" *ngIf="syncRunning || lastSyncMessage">
+      <div class="sync-widget-head">
+        <span class="sync-widget-badge">{{ syncRunning ? 'SYNC' : 'INFO' }}</span>
+        <span class="sync-widget-title">Tyrak Box Sync</span>
+      </div>
+      <div class="sync-widget-body">
+        <div class="sync-widget-line" *ngIf="syncCurrentTask">
+          <strong>{{ syncCurrentTask }}</strong>
+          <span *ngIf="syncCurrentProgress"> - {{ syncCurrentProgress }}%</span>
+        </div>
+        <div class="sync-widget-line" *ngIf="!syncCurrentTask">{{ lastSyncMessage }}</div>
+        <div class="sync-widget-line sync-widget-muted" *ngIf="syncLastEvent">{{ syncLastEvent }}</div>
+        <div class="sync-widget-error" *ngIf="syncLastError">{{ syncLastError }}</div>
+      </div>
+      <div class="sync-widget-bar" *ngIf="syncCurrentTask">
+        <div class="sync-widget-bar-fill" [style.width.%]="syncCurrentProgress"></div>
+      </div>
+      <div class="sync-widget-history" *ngIf="syncRecentEvents.length > 0">
+        <div class="sync-widget-history-title">Actividad reciente</div>
+        <div class="sync-widget-history-item" *ngFor="let event of syncRecentEvents">
+          {{ event }}
+        </div>
       </div>
     </div>
 
@@ -105,3 +130,4 @@
         </ul>
     </div>
 </div>
+
