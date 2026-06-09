@@ -34,6 +34,20 @@ export class FileService {
     return this.http.request(req);
   }
 
+  getUploadJob(jobId: string): Observable<any> {
+    return this.http.get(`${this.apiUrl}/files/upload-jobs/${jobId}`);
+  }
+
+  getUploadJobs(): Observable<any> {
+    return this.http.get(`${this.apiUrl}/files/upload-jobs`);
+  }
+
+  downloadUploadJobsReport(): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/files/upload-jobs/report`, {
+      responseType: 'blob'
+    });
+  }
+
   uploadChunk(chunk: Blob, chunkNumber: number, totalChunks: number, identifier: string): Observable<any> {
     const formData = new FormData();
     formData.append('chunk', chunk);

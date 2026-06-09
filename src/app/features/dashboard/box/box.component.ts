@@ -7,8 +7,8 @@ import { HttpEventType, HttpResponse } from '@angular/common/http';
 import { AuthService } from '../../../core/services/auth.service';
 import { Router } from '@angular/router';
 import { DomSanitizer } from '@angular/platform-browser';
-import { from } from 'rxjs';
-import { concatMap, finalize } from 'rxjs/operators';
+import { from, of, interval, Subscription } from 'rxjs';
+import { concatMap, finalize, catchError, map, takeWhile, switchMap, startWith } from 'rxjs/operators';
 
 @Pipe({ name: 'safeHtml' })
 export class SafeHtmlPipe implements PipeTransform {
@@ -63,6 +63,9 @@ export class BoxComponent implements OnInit {
   currentUploadingFile = '';
   totalFilesToUpload = 0;
   uploadedFilesCount = 0;
+  uploadErrors: { name: string; reason: string }[] = [];
+  uploadReportText = '';
+  private uploadStatusSubscriptions: Subscription[] = [];
 
   // Modal
   showNewFolderModal = false;
@@ -80,6 +83,7 @@ export class BoxComponent implements OnInit {
     this.loadContent();
     if (isPlatformBrowser(this.platformId)) {
       this.connectSyncSocket();
+      this.restoreUploadJobs();
       document.addEventListener('click', this.onDocumentClickHandler);
     }
   }
@@ -88,6 +92,7 @@ export class BoxComponent implements OnInit {
     if (isPlatformBrowser(this.platformId)) {
       if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
       if (this.reloadTimer) clearTimeout(this.reloadTimer);
+      this.clearUploadSubscriptions();
       this.disconnectSyncSocket();
       document.removeEventListener('click', this.onDocumentClickHandler);
     }
@@ -250,34 +255,195 @@ export class BoxComponent implements OnInit {
     this.isUploading = true;
     this.totalFilesToUpload = files.length;
     this.uploadedFilesCount = 0;
+    this.uploadErrors = [];
+    this.uploadReportText = '';
+    this.clearUploadSubscriptions();
 
     from(files).pipe(
       concatMap(file => {
         this.currentUploadingFile = file.name;
         this.cdr.detectChanges();
-        return this.fileService.uploadFile(file, this.currentFolderId);
+        return this.fileService.uploadFile(file, this.currentFolderId).pipe(
+          map(event => ({ fileName: file.name, event, failed: false })),
+          catchError(err => of({
+            fileName: file.name,
+            event: err,
+            failed: true,
+            reason: this.getUploadErrorMessage(err)
+          }))
+        );
       }),
       finalize(() => {
         this.isUploading = false;
+        this.uploadReportText = this.buildUploadReport();
         this.loadContent();
       })
     ).subscribe({
-      next: (event: any) => {
-        if (event instanceof HttpResponse) {
+      next: (result: any) => {
+        if (result?.failed) {
+          this.uploadErrors.push({ name: result.fileName, reason: result.reason || 'Error desconocido' });
+        } else if (result?.event instanceof HttpResponse) {
+          const body = result.event.body;
+          const jobId = body?.jobId ? String(body.jobId) : '';
           this.uploadedFilesCount++;
+          this.startJobPolling(result.fileName, jobId);
+          this.cdr.detectChanges();
+        } else if (result?.event.type === HttpEventType.UploadProgress) {
           this.cdr.detectChanges();
         }
       },
       error: (err) => {
-        console.error('Error en subida secuencial:', err);
-        alert('Hubo un error subiendo algunos archivos.');
+        console.error('Error inesperado en subida secuencial:', err);
       }
     });
+  }
+
+  private startJobPolling(fileName: string, jobId: string) {
+    if (!jobId) {
+      this.cdr.detectChanges();
+      return;
+    }
+
+    const subscription = interval(1200).pipe(
+      startWith(0),
+      switchMap(() => this.fileService.getUploadJob(jobId)),
+      takeWhile((job: any) => {
+        const status = String(job?.status ?? '');
+        return status !== 'COMPLETED' && status !== 'FAILED';
+      }, true)
+    ).subscribe({
+      next: (job: any) => {
+        const status = String(job?.status ?? 'UNKNOWN');
+        const message = String(job?.message ?? '');
+        if (status === 'FAILED') {
+          const reason = message || 'Falló el procesamiento';
+          this.uploadErrors.push({ name: fileName, reason });
+        }
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.cdr.detectChanges();
+      }
+    });
+
+    this.uploadStatusSubscriptions.push(subscription);
+  }
+
+  private restoreUploadJobs() {
+    this.fileService.getUploadJobs().subscribe({
+      next: (jobs: any[]) => {
+        const activeJobs = Array.isArray(jobs) ? jobs.filter(job => {
+          const status = String(job?.status ?? '');
+          return status === 'PENDING' || status === 'PROCESSING';
+        }) : [];
+
+        if (activeJobs.length > 0) {
+          this.isUploading = true;
+        }
+
+        for (const job of activeJobs) {
+          const fileName = String(job?.originalFilename ?? 'archivo');
+          this.currentUploadingFile = fileName;
+          this.startJobPolling(fileName, String(job?.id ?? ''));
+        }
+
+        const completedJobs = Array.isArray(jobs) ? jobs.filter(job => {
+          const status = String(job?.status ?? '');
+          return status === 'COMPLETED' || status === 'FAILED';
+        }) : [];
+
+        this.totalFilesToUpload = jobs?.length ?? 0;
+        this.uploadedFilesCount = completedJobs.filter(job => String(job?.status ?? '') === 'COMPLETED').length;
+        this.uploadErrors = completedJobs
+          .filter(job => String(job?.status ?? '') === 'FAILED')
+          .map(job => ({
+            name: String(job?.originalFilename ?? 'archivo'),
+            reason: String(job?.message ?? 'Falló el procesamiento')
+          }));
+        this.uploadReportText = this.buildReportFromBackendJobs(jobs ?? []);
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  private clearUploadSubscriptions() {
+    for (const sub of this.uploadStatusSubscriptions) {
+      sub.unsubscribe();
+    }
+    this.uploadStatusSubscriptions = [];
   }
 
   getUploadPercentage(): number {
     if (this.totalFilesToUpload === 0) return 0;
     return Math.round((this.uploadedFilesCount / this.totalFilesToUpload) * 100);
+  }
+
+  getFailedFilesCount(): number {
+    return this.uploadErrors.length;
+  }
+
+  hasUploadReport(): boolean {
+    return this.uploadErrors.length > 0 || (!this.isUploading && this.totalFilesToUpload > 0);
+  }
+
+  downloadUploadReport() {
+    this.fileService.downloadUploadJobsReport().subscribe((blob: Blob) => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `reporte-upload-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    });
+  }
+
+  private buildUploadReport(): string {
+    const lines: string[] = [];
+    lines.push('Reporte de carga de archivos');
+    lines.push(`Total procesados: ${this.totalFilesToUpload}`);
+    lines.push(`Exitosos: ${this.uploadedFilesCount}`);
+    lines.push(`Fallidos: ${this.uploadErrors.length}`);
+    lines.push('');
+
+    if (this.uploadErrors.length === 0) {
+      lines.push('No hubo archivos con error.');
+      return lines.join('\n');
+    }
+
+    lines.push('Archivos con error:');
+    for (const item of this.uploadErrors) {
+      lines.push(`- ${item.name}: ${item.reason}`);
+    }
+
+    return lines.join('\n');
+  }
+
+  private buildReportFromBackendJobs(jobs: any[]): string {
+    const lines: string[] = [];
+    lines.push('Reporte de carga de archivos');
+    lines.push(`Total procesados: ${jobs.length}`);
+    lines.push(`Exitosos: ${jobs.filter(job => String(job?.status ?? '') === 'COMPLETED').length}`);
+    lines.push(`Fallidos: ${jobs.filter(job => String(job?.status ?? '') === 'FAILED').length}`);
+    lines.push('');
+    for (const job of jobs) {
+      lines.push(`${job?.createdAt ?? ''} | ${job?.originalFilename ?? 'archivo'} | ${job?.status ?? ''} | ${job?.message ?? ''}`);
+    }
+    return lines.join('\n');
+  }
+
+  private getUploadErrorMessage(err: any): string {
+    if (typeof err?.error === 'string' && err.error.trim()) {
+      return err.error;
+    }
+    if (typeof err?.message === 'string' && err.message.trim()) {
+      return err.message;
+    }
+    if (err?.status) {
+      return `HTTP ${err.status}`;
+    }
+    return 'No se pudo subir o verificar el archivo';
   }
 
   downloadFile(file: File) {
