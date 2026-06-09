@@ -34,11 +34,10 @@
     <div *ngIf="isUploading" class="upload-progress-container">
       <div class="upload-info">
         <!-- El porcentaje va primero y tiene su propio span -->
-        <span class="upload-percentage">{{ getUploadPercentage() }}%</span>
+        <span class="upload-percentage">({{ uploadedFilesCount + 1 }}/{{ totalFilesToUpload }}) - {{ getUploadPercentage() }}%</span>
         
         <span class="upload-details">
           Subiendo: <strong>{{ currentUploadingFile }}</strong> 
-          ({{ uploadedFilesCount + 1 }}/{{ totalFilesToUpload }})
         </span>
       </div>
       <div class="progress-bar">

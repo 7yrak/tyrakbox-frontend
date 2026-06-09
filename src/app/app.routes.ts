@@ -6,6 +6,7 @@ import { TrashComponent } from './features/dashboard/trash/trash.component';
 import { AuthLayoutComponent } from './layouts/auth-layout/auth-layout.component';
 import { MainLayoutComponent } from './layouts/main-layout/main-layout.component';
 import { authGuard } from './core/guards/auth.guard';
+import { ProfileComponent } from './features/auth/profile/profile.component';
 
 export const routes: Routes = [
   {
@@ -24,6 +25,7 @@ export const routes: Routes = [
     children: [
       { path: 'box', component: BoxComponent },
       { path: 'trash', component: TrashComponent },
+      { path: 'profile', component: ProfileComponent },
       // Redirección por defecto para rutas protegidas
       { path: '', redirectTo: 'box', pathMatch: 'full' }
     ]

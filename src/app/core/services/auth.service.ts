@@ -22,7 +22,12 @@ export class AuthService {
 
   login(credentials: { username: string, password: string }): Observable<any> {
     return this.http.post(`${this.apiUrl}/login`, credentials).pipe(
-      tap((response: any) => this.setToken(response.token))
+      tap((response: any) => {
+        this.setToken(response.token);
+        this.setUsername(response.username);
+        this.setFirstName(response.firstName);
+        this.setLastName(response.lastName);
+      })
     );
   }
 
@@ -30,9 +35,35 @@ export class AuthService {
     return this.http.post(`${this.apiUrl}/register`, user);
   }
 
+  getProfile(): Observable<any> {
+    return this.http.get(`${this.apiUrl}/me`);
+  }
+
+  changePassword(payload: { currentPassword: string; newPassword: string }): Observable<any> {
+    return this.http.post(`${this.apiUrl}/change-password`, payload);
+  }
+
   setToken(token: string): void {
     if (isPlatformBrowser(this.platformId)) {
       localStorage.setItem('tyrak_token', token);
+    }
+  }
+
+  setUsername(username: string): void {
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.setItem('tyrak_username', username);
+    }
+  }
+
+  setFirstName(firstName: string): void {
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.setItem('tyrak_first_name', firstName);
+    }
+  }
+
+  setLastName(lastName: string): void {
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.setItem('tyrak_last_name', lastName);
     }
   }
 
@@ -43,9 +74,33 @@ export class AuthService {
     return null;
   }
 
+  getUsername(): string | null {
+    if (isPlatformBrowser(this.platformId)) {
+      return localStorage.getItem('tyrak_username');
+    }
+    return null;
+  }
+
+  getFirstName(): string | null {
+    if (isPlatformBrowser(this.platformId)) {
+      return localStorage.getItem('tyrak_first_name');
+    }
+    return null;
+  }
+
+  getLastName(): string | null {
+    if (isPlatformBrowser(this.platformId)) {
+      return localStorage.getItem('tyrak_last_name');
+    }
+    return null;
+  }
+
   logout(): void {
     if (isPlatformBrowser(this.platformId)) {
       localStorage.removeItem('tyrak_token');
+      localStorage.removeItem('tyrak_username');
+      localStorage.removeItem('tyrak_first_name');
+      localStorage.removeItem('tyrak_last_name');
     }
   }
 
